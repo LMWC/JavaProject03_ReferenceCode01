@@ -14,7 +14,7 @@ public class Order{
      * 订单编号
      */
     @TableId(type = IdType.INPUT)
-    private Long orderId;
+    private Long id;
     /**
      * 商品金额
      */
