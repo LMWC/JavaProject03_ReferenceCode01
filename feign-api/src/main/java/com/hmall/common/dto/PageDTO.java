@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * 分页结果对象
- * @param <T>
+ * @param <T> 分页的数据的类型
  */
 @Data
 @NoArgsConstructor
