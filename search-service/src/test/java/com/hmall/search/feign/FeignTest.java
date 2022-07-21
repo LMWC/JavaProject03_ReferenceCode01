@@ -47,6 +47,10 @@ public class FeignTest {
             // 2.准备DSL
             // 遍历
             for (Item item : list) {
+                if(item.getStatus() == 2){
+                    // 下架商品直接跳过
+                    continue;
+                }
                 // 把 Item 转为 ItemDoc
                 ItemDoc itemDoc = new ItemDoc(item);
                 // 添加新增请求

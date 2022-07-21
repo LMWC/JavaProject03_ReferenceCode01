@@ -33,7 +33,7 @@ public class OrderLogistics{
     /**
      * 手机号
      */
-    private String phone;
+    private String mobile;
     /**
      * 省
      */

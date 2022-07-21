@@ -1,22 +1,32 @@
 package com.hmall.search.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hmall.common.client.ItemClient;
+import com.hmall.common.dto.Item;
 import com.hmall.common.dto.PageDTO;
 import com.hmall.search.pojo.ItemDoc;
 import com.hmall.search.pojo.RequestParams;
 import com.hmall.search.service.ISearchService;
 import org.apache.commons.lang.StringUtils;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
+import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
+import org.elasticsearch.search.sort.SortOrder;
 import org.elasticsearch.search.suggest.SuggestBuilder;
 import org.elasticsearch.search.suggest.SuggestBuilders;
 import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
@@ -129,9 +139,14 @@ public class SearchService implements ISearchService {
             int size = params.getSize();
             request.source().from((page - 1) * size).size(size);
             // 2.3.排序
-
+            String sortBy = params.getSortBy();
+            if ("sold".equals(sortBy)) {
+                request.source().sort(sortBy, SortOrder.DESC);
+            } else if ("price".equals(sortBy)) {
+                request.source().sort(sortBy, SortOrder.ASC);
+            }
             // 2.4.高亮
-
+            request.source().highlighter(new HighlightBuilder().field("name").requireFieldMatch(false));
             // 3.发请求
             SearchResponse response = restHighLevelClient.search(request, RequestOptions.DEFAULT);
             // 4.解析结果
@@ -147,9 +162,47 @@ public class SearchService implements ISearchService {
                 String json = hit.getSourceAsString();
                 // 4.5.转Java
                 ItemDoc itemDoc = MAPPER.readValue(json, ItemDoc.class);
+                // 4.6.获取高亮
+                Map<String, HighlightField> map = hit.getHighlightFields();
+                if (map != null && map.size() > 0) {
+                    HighlightField field = map.get("name");
+                    String value = field.getFragments()[0].string();
+                    itemDoc.setName(value);
+                }
                 list.add(itemDoc);
             }
             return new PageDTO<>(total, list);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deleteItemById(Long id) {
+        try {
+            // 1.准备Request
+            DeleteRequest request = new DeleteRequest("item", id.toString());
+            // 2.发请求
+            restHighLevelClient.delete(request, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Autowired
+    private ItemClient itemClient;
+
+    @Override
+    public void saveItemById(Long id) {
+        try {
+            // 1.查询商品数据
+            Item item = itemClient.queryItemById(id);
+            // 2.准备Request
+            IndexRequest request = new IndexRequest("item").id(id.toString());
+            // 3.准备DSL
+            request.source(MAPPER.writeValueAsString(new ItemDoc(item)), XContentType.JSON);
+            // 4.发送请求
+            restHighLevelClient.index(request, RequestOptions.DEFAULT);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -163,18 +216,18 @@ public class SearchService implements ISearchService {
         if (StringUtils.isNotBlank(key)) {
             // 非空
             boolQuery.must(QueryBuilders.matchQuery("all", key));
-        }else{
+        } else {
             // 空
             boolQuery.must(QueryBuilders.matchAllQuery());
         }
         // 1.2. brand
         String brand = params.getBrand();
-        if(StringUtils.isNotBlank(brand)) {
+        if (StringUtils.isNotBlank(brand)) {
             boolQuery.filter(QueryBuilders.termQuery("brand", brand));
         }
         // 1.3. category
         String category = params.getCategory();
-        if(StringUtils.isNotBlank(category)) {
+        if (StringUtils.isNotBlank(category)) {
             boolQuery.filter(QueryBuilders.termQuery("category", category));
         }
         // 1.4. price
@@ -185,6 +238,16 @@ public class SearchService implements ISearchService {
         }
 
         // 2.放入request
-        request.source().query(boolQuery);
+        FunctionScoreQueryBuilder queryBuilder = QueryBuilders.functionScoreQuery(
+                boolQuery,
+                new FunctionScoreQueryBuilder.FilterFunctionBuilder[]{
+                        new FunctionScoreQueryBuilder.FilterFunctionBuilder(
+                                QueryBuilders.termQuery("isAD", true),
+                                ScoreFunctionBuilders.weightFactorFunction(100)
+                        )
+                }
+        );
+
+        request.source().query(queryBuilder);
     }
 }

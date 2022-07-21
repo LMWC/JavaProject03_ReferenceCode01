@@ -11,9 +11,9 @@ import java.util.Date;
 @TableName("tb_order")
 public class Order{
     /**
-     * 订单编号
+     * 订单编号, 自动生成雪花算法ID
      */
-    @TableId(type = IdType.INPUT)
+    @TableId(type = IdType.ASSIGN_ID)
     private Long id;
     /**
      * 商品金额

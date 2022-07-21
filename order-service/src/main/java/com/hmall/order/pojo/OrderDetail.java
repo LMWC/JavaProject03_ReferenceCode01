@@ -30,7 +30,7 @@ public class OrderDetail {
     /**
      * 商品标题
      */
-    private String title;
+    private String name;
     /**
      * 商品单价
      */

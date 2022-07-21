@@ -23,7 +23,7 @@ spring:
           predicates:
             - Path=/search/**
       default-filters:
-        - AddRequestHeader=Truth, Huge is very Handsome!
+        - AddRequestHeader=authorization, 2
       globalcors: # 全局的跨域处理
         add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
         corsConfigurations:

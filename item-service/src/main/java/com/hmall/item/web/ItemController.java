@@ -86,4 +86,9 @@ public class ItemController {
     public void deleteItemById(@PathVariable("id") Long id) {
         itemService.removeById(id);
     }
+
+    @PutMapping("/stock/{itemId}/{num}")
+    public void updateStock(@PathVariable("itemId") Long itemId, @PathVariable("num") Integer num){
+        itemService.deductStock(itemId, num);
+    }
 }

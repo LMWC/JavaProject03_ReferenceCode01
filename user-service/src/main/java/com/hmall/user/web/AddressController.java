@@ -19,8 +19,8 @@ public class AddressController {
     @Autowired
     private IAddressService addressService;
 
-    @GetMapping("{id}")
-    public Address findAddressById(@PathVariable("id") Long id) {
+    @GetMapping("{addressId}")
+    public Address findAddressById(@PathVariable("addressId") Long id) {
         return addressService.getById(id);
     }
 

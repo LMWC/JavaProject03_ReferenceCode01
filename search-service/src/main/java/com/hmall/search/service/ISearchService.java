@@ -13,4 +13,8 @@ public interface ISearchService {
     Map<String, List<String>> getFilters(RequestParams params);
 
     PageDTO<ItemDoc> search(RequestParams params);
+
+    void deleteItemById(Long id);
+
+    void saveItemById(Long id);
 }
